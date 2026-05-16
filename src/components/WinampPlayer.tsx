@@ -70,7 +70,10 @@ export function WinampPlayer() {
                 <span>STEREO</span>
               </div>
             </div>
-            <div className="bevel-in flex-1 h-[76px] overflow-hidden relative">
+            <div
+              className="bevel-in flex-1 overflow-hidden relative"
+              style={{ height: mode === "ps1" ? 180 : 76 }}
+            >
               {mode === "winamp" ? <WaveVisualizer /> : <PS1Container />}
             </div>
           </div>
