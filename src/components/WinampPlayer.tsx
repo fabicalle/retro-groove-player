@@ -1,12 +1,8 @@
 import { useEffect, useState } from "react";
 import { WaveVisualizer } from "./WaveVisualizer";
-import { PS1Container } from "./PS1Container";
 import { SpotifyConnect } from "./SpotifyConnect";
 
-type Mode = "winamp" | "ps1";
-
-export function WinampPlayer() {
-  const [mode, setMode] = useState<Mode>("winamp");
+export function WinampPlayer({ onSwitchToPS1 }: { onSwitchToPS1: () => void }) {
   const [playing, setPlaying] = useState(true);
   const [elapsed, setElapsed] = useState(0);
   const [vol, setVol] = useState(75);
@@ -23,9 +19,7 @@ export function WinampPlayer() {
 
   return (
     <div className="w-[460px] max-w-full select-none">
-      {/* Main window */}
       <div className="bevel-out p-[2px]">
-        {/* Title bar */}
         <div className="title-bar-gradient flex items-center justify-between px-2 py-[3px]">
           <span className="text-[10px] font-bold tracking-widest text-white/90 uppercase">
             ▣ Y2K Player 2.95
@@ -42,23 +36,21 @@ export function WinampPlayer() {
           </div>
         </div>
 
-        {/* Mode menu */}
         <div className="bevel-out flex items-stretch gap-[2px] p-[2px] border-t-0">
           <MenuItem>File</MenuItem>
           <MenuItem>Play</MenuItem>
           <MenuItem>Options</MenuItem>
           <div className="flex-1" />
-          <ModeBtn active={mode === "winamp"} onClick={() => setMode("winamp")}>
-            ◢ Winamp
-          </ModeBtn>
-          <ModeBtn active={mode === "ps1"} onClick={() => setMode("ps1")}>
-            ◆ PS1 3D
-          </ModeBtn>
+          <button
+            onClick={onSwitchToPS1}
+            className="bevel-btn px-3 text-xs font-bold text-black hover:bg-[var(--winamp-chrome-light)]"
+            title="Switch to PS1 BIOS CD Player"
+          >
+            ◆ PS1 Mode
+          </button>
         </div>
 
-        {/* Body */}
         <div className="bevel-out p-2 space-y-2 border-t-0">
-          {/* Top row: time + visualizer */}
           <div className="flex gap-2">
             <div className="bevel-in px-2 py-1 flex flex-col items-center justify-center min-w-[88px]">
               <span className="lcd-text text-3xl leading-none font-bold tabular-nums">
@@ -72,22 +64,20 @@ export function WinampPlayer() {
             </div>
             <div
               className="bevel-in flex-1 overflow-hidden relative"
-              style={{ height: mode === "ps1" ? 180 : 76 }}
+              style={{ height: 76 }}
             >
-              {mode === "winamp" ? <WaveVisualizer /> : <PS1Container />}
+              <WaveVisualizer />
             </div>
           </div>
 
-          {/* Marquee */}
           <div className="bevel-in px-2 py-1 overflow-hidden">
             <div className="lcd-text text-sm whitespace-nowrap animate-[marquee_18s_linear_infinite]">
               ★ 01. The Prodigy — Smack My Ash Up · (4:17) ·····  Y2K
-              Player · {mode === "winamp" ? "WINAMP MODE" : "PS1 3D MODE"} ·····
+              Player · WINAMP MODE ·····
             </div>
             <style>{`@keyframes marquee { from { transform: translateX(100%);} to {transform: translateX(-100%);} }`}</style>
           </div>
 
-          {/* Sliders row */}
           <div className="flex items-center gap-2">
             <Slider label="VOL" value={vol} onChange={setVol} />
             <Slider label="BAL" value={bal} onChange={setBal} />
@@ -101,7 +91,6 @@ export function WinampPlayer() {
             </div>
           </div>
 
-          {/* Transport */}
           <div className="flex items-center gap-1">
             {[
               { l: "◄◄", t: "prev" },
@@ -124,15 +113,13 @@ export function WinampPlayer() {
             <Toggle label="PL" />
           </div>
 
-          {/* Spotify */}
           <SpotifyConnect />
         </div>
       </div>
 
-      {/* Status footer */}
       <div className="mt-3 bevel-out px-3 py-1 flex justify-between text-[10px] uppercase tracking-wider text-black/80">
         <span>● {playing ? "Playing" : "Stopped"}</span>
-        <span>Mode: {mode === "winamp" ? "2D Wave" : "PS1 3D Slot"}</span>
+        <span>Mode: 2D Wave</span>
         <span>v2.95 · Y2K</span>
       </div>
     </div>
@@ -142,36 +129,6 @@ export function WinampPlayer() {
 function MenuItem({ children }: { children: React.ReactNode }) {
   return (
     <button className="bevel-btn px-2 text-xs text-black hover:bg-[var(--winamp-chrome-light)]">
-      {children}
-    </button>
-  );
-}
-
-function ModeBtn({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="px-3 text-xs font-bold text-black"
-      style={{
-        borderTop: `1px solid ${active ? "var(--winamp-bevel-dark)" : "var(--winamp-bevel-light)"}`,
-        borderLeft: `1px solid ${active ? "var(--winamp-bevel-dark)" : "var(--winamp-bevel-light)"}`,
-        borderRight: `1px solid ${active ? "var(--winamp-bevel-light)" : "var(--winamp-bevel-dark)"}`,
-        borderBottom: `1px solid ${active ? "var(--winamp-bevel-light)" : "var(--winamp-bevel-dark)"}`,
-        background: active
-          ? "var(--winamp-chrome-dark)"
-          : "var(--winamp-chrome)",
-        color: active ? "var(--winamp-lcd)" : "black",
-        textShadow: active ? "0 0 4px var(--winamp-lcd)" : "none",
-      }}
-    >
       {children}
     </button>
   );
