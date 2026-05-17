@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
 
 /**
- * Faithful recreation of the PlayStation 1 (SCPH-1001) BIOS Audio CD Player screen.
- * Reference: real PS1 BIOS "CD PLAYER" UI.
+ * Pixel-faithful recreation of the SCPH-1001 PlayStation BIOS "CD PLAYER" screen.
+ * Reference: official BIOS screenshot (drew1440.com).
+ *
+ * Internal coordinate system: 640 x 480 (PS1 native), absolutely positioned.
+ * The parent (PS1Screen) scales this via CSS transform to fill the TV frame.
  */
 export function PS1Container() {
-  const [time, setTime] = useState({ track: 1, min: 0, sec: 3 });
-  const [selected, setSelected] = useState(1);
+  const [time, setTime] = useState({ track: 0, min: 0, sec: 0 });
+  const [selected, setSelected] = useState<number | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -18,224 +21,397 @@ export function PS1Container() {
     return () => clearInterval(id);
   }, []);
 
-  // Track palette mirrors the BIOS color cycling (purple, yellow, green, red).
-  const trackColor = (n: number) => {
-    const palette = ["#a26bff", "#ffd400", "#ffd400", "#ffd400", "#3aff6b"];
-    const row = Math.floor((n - 1) / 5);
-    const col = (n - 1) % 5;
-    if (row === 0) return palette[col];
-    if (row === 1) return ["#ff8a00", "#ffd400", "#ffd400", "#3aff6b", "#3aff6b"][col];
-    if (row === 2) return ["#ff3838", "#ff3838", "#3aff6b", "#3aff6b", "#a26bff"][col];
-    return "#ff3838";
-  };
+  const pad2 = (n: number) => String(n).padStart(2, "0");
 
-  const tracks = Array.from({ length: 16 }, (_, i) => i + 1);
-  const pad = (n: number) => String(n).padStart(2, "0");
+  // Transport buttons (top → bottom), matching the BIOS exactly.
+  const transport: Array<{ color: "green" | "blue" | "red" | "yellow"; glyph: string }> = [
+    { color: "green", glyph: "▶▶" },
+    { color: "green", glyph: "▶▶" },
+    { color: "blue", glyph: "▶" },
+    { color: "red", glyph: "■" },
+    { color: "yellow", glyph: "❚❚" },
+    { color: "yellow", glyph: "◀◀" },
+    { color: "yellow", glyph: "◀◀" },
+  ];
+
+  // 5-col track dot grid (BIOS palette by row: yellow, yellow, red, purple, ...)
+  const dotRows: string[][] = [
+    ["#f5d800", "#f5d800", "#f5d800", "#f5d800", "#3aff6b"],
+    ["#f5d800", "#f5d800", "#f5d800", "#f5d800", "#3aff6b"],
+    ["#ff2a2a", "#ff2a2a", "#ff2a2a", "#ff2a2a", "#a26bff"],
+    ["#a26bff", "#a26bff", "#a26bff", "#a26bff", "#a26bff"],
+  ];
 
   return (
     <div
-      className="relative w-full h-full overflow-hidden"
+      className="relative overflow-hidden"
       style={{
+        width: 640,
+        height: 480,
         background:
-          "radial-gradient(ellipse at 50% 40%, #4a3aa8 0%, #1a1764 55%, #08043a 100%)",
-        fontFamily: "var(--font-pixel)",
+          "radial-gradient(ellipse at 50% 45%, #5a4ec8 0%, #2a2380 45%, #0d0848 85%, #050224 100%)",
+        fontFamily: "Arial, Helvetica, sans-serif",
+        color: "#fff",
       }}
     >
-      {/* CRT scanlines */}
+      {/* Subtle background bubbles (faint, like the BIOS) */}
+      <Bubble x={500} y={420} r={60} opacity={0.35} />
+      <Bubble x={70} y={440} r={45} opacity={0.25} />
+      <Bubble x={580} y={350} r={28} opacity={0.55} />
+
+      {/* === TRANSPORT BUTTONS (left column) === */}
       <div
-        className="absolute inset-0 pointer-events-none z-20"
-        style={{
-          backgroundImage:
-            "repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0px, rgba(0,0,0,0.18) 1px, transparent 1px, transparent 3px)",
-        }}
-      />
-      {/* CRT vignette */}
+        className="absolute"
+        style={{ left: 18, top: 28, display: "flex", flexDirection: "column", gap: 6 }}
+      >
+        {transport.map((b, i) => (
+          <TransportSphere key={i} color={b.color} glyph={b.glyph} />
+        ))}
+      </div>
+
+      {/* === TIME DISPLAY (three top spheres) === */}
+      {/* Small track-number sphere */}
+      <TimeSphere x={130} y={45} size={48} value={String(time.track)} />
+      {/* Big MIN sphere */}
+      <TimeSphere x={205} y={55} size={72} value={pad2(time.min)} label="MIN" />
+      {/* Tiny yellow colon dot */}
       <div
-        className="absolute inset-0 pointer-events-none z-20"
+        className="absolute"
         style={{
+          left: 295,
+          top: 95,
+          width: 10,
+          height: 10,
+          borderRadius: "50%",
           background:
-            "radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.55) 100%)",
+            "radial-gradient(circle at 35% 30%, #fff7a0 0%, #f5d800 60%, #8a7000 100%)",
+          boxShadow: "0 0 6px #f5d800",
         }}
       />
+      {/* Big SEC sphere */}
+      <TimeSphere x={320} y={55} size={72} value={pad2(time.sec)} label="SEC" />
 
-      <div className="relative z-10 flex h-full p-1 gap-1 text-white">
-        {/* LEFT: transport buttons stack (circular, PS-style coloured) */}
-        <div className="flex flex-col justify-between py-0.5">
-          {[
-            { c: "#3aff6b", g: "linear-gradient(145deg,#7dffa3,#1ca83f)", l: "▶▶" },
-            { c: "#3aff6b", g: "linear-gradient(145deg,#7dffa3,#1ca83f)", l: "▶" },
-            { c: "#ff8aff", g: "linear-gradient(145deg,#ffc6ff,#a23ab8)", l: "❚❚" },
-            { c: "#ff3838", g: "linear-gradient(145deg,#ff8a8a,#a40000)", l: "●" },
-            { c: "#3aa0ff", g: "linear-gradient(145deg,#9ed3ff,#1a4ea8)", l: "◀" },
-            { c: "#3aa0ff", g: "linear-gradient(145deg,#9ed3ff,#1a4ea8)", l: "◀◀" },
-          ].map((b, i) => (
-            <button
-              key={i}
-              className="rounded-full text-black text-[6px] font-bold flex items-center justify-center"
-              style={{
-                width: 14,
-                height: 14,
-                background: b.g,
-                boxShadow: `0 0 3px ${b.c}, inset -1px -1px 2px rgba(0,0,0,0.4), inset 1px 1px 2px rgba(255,255,255,0.6)`,
-              }}
-            >
-              {b.l}
-            </button>
-          ))}
+      {/* === CD PLAYER label (top-right) === */}
+      <div
+        className="absolute flex items-center justify-center"
+        style={{
+          right: 28,
+          top: 30,
+          width: 200,
+          height: 48,
+          background: "#0a0428",
+          border: "3px solid #6a7fe5",
+          boxShadow: "inset 0 0 8px rgba(0,0,0,0.6)",
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "Arial Black, Arial, sans-serif",
+            fontWeight: 900,
+            fontSize: 24,
+            letterSpacing: 2,
+            color: "#fff",
+            textShadow: "1px 1px 2px rgba(0,0,0,0.8)",
+          }}
+        >
+          CD PLAYER
+        </span>
+      </div>
+
+      {/* === INFO PANEL (with pink triangle cursor + CONTINUE) === */}
+      <div
+        className="absolute"
+        style={{
+          left: 90,
+          top: 150,
+          width: 290,
+          height: 165,
+          background:
+            "linear-gradient(180deg, rgba(80,70,180,0.35) 0%, rgba(40,30,120,0.45) 100%)",
+          border: "2px solid #6a7fe5",
+          boxShadow:
+            "inset 0 0 20px rgba(20,10,80,0.6), inset 0 0 2px rgba(255,255,255,0.2)",
+        }}
+      >
+        {/* Pink triangle cursor pointing right, on the left edge */}
+        <div
+          className="absolute"
+          style={{
+            left: -6,
+            top: 12,
+            width: 0,
+            height: 0,
+            borderLeft: "22px solid #ff3aa8",
+            borderTop: "13px solid transparent",
+            borderBottom: "13px solid transparent",
+            filter:
+              "drop-shadow(2px 2px 0 rgba(0,0,0,0.5)) drop-shadow(0 0 4px rgba(255,80,180,0.8))",
+          }}
+        />
+        {/* CONTINUE label at bottom-left of the panel */}
+        <div
+          className="absolute"
+          style={{
+            left: 14,
+            bottom: 14,
+            fontFamily: "Arial Black, Arial, sans-serif",
+            fontWeight: 900,
+            fontSize: 18,
+            color: "#fff",
+            letterSpacing: 1,
+            textShadow: "2px 2px 0 rgba(0,0,0,0.5)",
+          }}
+        >
+          CONTINUE
         </div>
+      </div>
 
-        {/* CENTER + RIGHT panel */}
-        <div className="flex-1 flex flex-col gap-1">
-          {/* Top row: time display + CD PLAYER label */}
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-1">
-              {/* Track # */}
-              <TimeBubble value={pad(time.track)} />
-              {/* Minutes */}
-              <div className="flex flex-col items-center">
-                <TimeBubble value={pad(time.min)} />
-                <span className="text-[6px] tracking-widest opacity-90">MIN</span>
-              </div>
-              {/* dot separator */}
-              <div className="w-0.5 h-0.5 rounded-full bg-[#ffd400] mt-2" />
-              {/* Seconds */}
-              <div className="flex flex-col items-center">
-                <TimeBubble value={pad(time.sec)} />
-                <span className="text-[6px] tracking-widest opacity-90">SEC</span>
-              </div>
-            </div>
-
-            <div
-              className="px-1.5 py-0.5 text-[8px] font-bold tracking-wider"
-              style={{
-                background: "#0a0050",
-                border: "1px solid #6a9bff",
-                color: "#ffffff",
-                fontFamily: "var(--font-display)",
-                fontSize: 6,
-              }}
-            >
-              CD PLAYER
-            </div>
-          </div>
-
-          {/* Middle: info panel + track grid */}
-          <div className="flex-1 flex gap-1 min-h-0">
-            {/* Info panel with pink triangle cursor + CONTINUE */}
-            <div
-              className="flex-1 relative px-1 py-0.5"
-              style={{
-                background: "rgba(10,5,80,0.55)",
-                border: "1px solid #6a9bff",
-              }}
-            >
-              {/* pink triangle cursor */}
-              <div
-                className="absolute"
+      {/* === TRACK DOT GRID (right) === */}
+      <div
+        className="absolute"
+        style={{
+          left: 415,
+          top: 155,
+          display: "grid",
+          gridTemplateColumns: "repeat(5, 1fr)",
+          gap: 22,
+          rowGap: 28,
+        }}
+      >
+        {dotRows.flatMap((row, ri) =>
+          row.map((c, ci) => {
+            const idx = ri * 5 + ci + 1;
+            const isSel = selected === idx;
+            return (
+              <button
+                key={idx}
+                onClick={() => setSelected(idx)}
                 style={{
-                  top: 2,
-                  left: 2,
-                  width: 0,
-                  height: 0,
-                  borderLeft: "5px solid #ff3aa8",
-                  borderTop: "3px solid transparent",
-                  borderBottom: "3px solid transparent",
-                  filter: "drop-shadow(0 0 1px #fff)",
+                  width: 14,
+                  height: 14,
+                  borderRadius: "50%",
+                  background: `radial-gradient(circle at 35% 30%, #fff 0%, ${c} 55%, rgba(0,0,0,0.4) 130%)`,
+                  boxShadow: isSel
+                    ? `0 0 8px ${c}, 0 0 14px #fff`
+                    : `0 0 4px rgba(0,0,0,0.5)`,
+                  border: "none",
+                  cursor: "pointer",
+                  padding: 0,
                 }}
               />
-              <div className="absolute bottom-0.5 left-1 text-[7px] tracking-wider">
-                CONTINUE
-              </div>
-            </div>
+            );
+          }),
+        )}
+      </div>
 
-            {/* Track grid 5 cols */}
-            <div className="grid grid-cols-5 gap-[3px] content-start">
-              {tracks.map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setSelected(n)}
-                  className="rounded-full flex items-center justify-center font-bold text-black"
-                  style={{
-                    width: 12,
-                    height: 12,
-                    fontSize: 6,
-                    background: `radial-gradient(circle at 35% 30%, #fff 0%, ${trackColor(n)} 50%, #000 130%)`,
-                    boxShadow:
-                      selected === n
-                        ? `0 0 4px #fff, inset 0 0 2px rgba(0,0,0,0.5)`
-                        : `inset -1px -1px 2px rgba(0,0,0,0.5), inset 1px 1px 1px rgba(255,255,255,0.6)`,
-                    outline: selected === n ? "1px solid #ff3aa8" : "none",
-                  }}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Bottom: menu strip */}
-          <div className="flex items-end justify-between gap-1 text-[7px] tracking-wide">
-            <div className="flex flex-col gap-0.5">
-              <div className="flex gap-1.5">
-                <MenuLabel>CONTINUE</MenuLabel>
-                <MenuLabel>SHUFFLE</MenuLabel>
-                <MenuLabel>PROGRAM</MenuLabel>
-              </div>
-              <div className="flex gap-1.5">
-                <MenuLabel>REPEAT</MenuLabel>
-                <MenuLabel>TIME</MenuLabel>
-              </div>
-            </div>
-
-            {/* EXIT button with rainbow glitch */}
-            <div
-              className="px-1.5 py-0.5 font-bold text-white"
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: 7,
-                background:
-                  "linear-gradient(90deg,#ff3838,#ffd400,#3aff6b,#3aa0ff,#a26bff)",
-                textShadow: "1px 0 0 #000, -1px 0 0 #000",
-                filter: "saturate(1.3)",
-              }}
-            >
-              EXIT
-            </div>
-          </div>
+      {/* === BOTTOM MENU STRIP === */}
+      <div
+        className="absolute"
+        style={{
+          left: 90,
+          bottom: 60,
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+        }}
+      >
+        <div style={{ display: "flex", gap: 18 }}>
+          <MenuButton>CONTINUE</MenuButton>
+          <MenuButton>SHUFFLE</MenuButton>
+          <MenuButton>PROGRAM</MenuButton>
         </div>
+        <div style={{ display: "flex", gap: 18 }}>
+          <MenuButton>REPEAT</MenuButton>
+          <MenuButton>TIME</MenuButton>
+        </div>
+      </div>
+
+      {/* === EXIT button with rainbow glitch === */}
+      <div
+        className="absolute"
+        style={{
+          right: 55,
+          bottom: 55,
+          width: 230,
+          height: 60,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {/* rainbow glitch scatter behind */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(90deg,#ff3838 0%,#ff8a00 18%,#f5d800 35%,#3aff6b 55%,#3aa0ff 75%,#a26bff 100%)",
+            filter: "blur(0.5px)",
+            clipPath:
+              "polygon(0% 30%, 5% 10%, 12% 40%, 18% 0%, 25% 50%, 32% 15%, 40% 60%, 48% 5%, 56% 55%, 64% 20%, 72% 70%, 80% 10%, 88% 50%, 96% 25%, 100% 60%, 100% 100%, 0% 100%)",
+            opacity: 0.95,
+          }}
+        />
+        <span
+          className="relative"
+          style={{
+            fontFamily: "Arial Black, Arial, sans-serif",
+            fontWeight: 900,
+            fontSize: 42,
+            color: "#fff",
+            letterSpacing: 4,
+            textShadow:
+              "2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000",
+          }}
+        >
+          EXIT
+        </span>
       </div>
     </div>
   );
 }
 
-function TimeBubble({ value }: { value: string }) {
+/* ============================================================== */
+/* Sub-components                                                  */
+/* ============================================================== */
+
+function TransportSphere({
+  color,
+  glyph,
+}: {
+  color: "green" | "blue" | "red" | "yellow";
+  glyph: string;
+}) {
+  const palette = {
+    green: { hi: "#9bff9b", mid: "#1cc844", lo: "#085018" },
+    blue: { hi: "#bcd3ff", mid: "#3866e8", lo: "#0a1c7a" },
+    red: { hi: "#ffb0b0", mid: "#e83838", lo: "#6a0010" },
+    yellow: { hi: "#fff39b", mid: "#e8b818", lo: "#5a4000" },
+  }[color];
+
   return (
     <div
-      className="rounded-full flex items-center justify-center font-bold"
       style={{
-        width: 18,
-        height: 18,
-        background:
-          "radial-gradient(circle at 35% 30%, #6a9bff 0%, #1a4ea8 60%, #0a1f6a 100%)",
-        color: "#bfe0ff",
-        fontSize: 9,
-        textShadow: "0 0 3px #6af",
-        boxShadow:
-          "inset -1px -1px 2px rgba(0,0,0,0.6), inset 1px 1px 2px rgba(255,255,255,0.4)",
+        width: 50,
+        height: 50,
+        borderRadius: "50%",
+        background: `radial-gradient(circle at 32% 28%, #fff 0%, ${palette.hi} 12%, ${palette.mid} 50%, ${palette.lo} 100%)`,
+        boxShadow: `0 4px 6px rgba(0,0,0,0.5), inset -3px -4px 8px rgba(0,0,0,0.4)`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#000",
+        fontWeight: 900,
+        fontSize: 14,
+        textShadow: "1px 1px 0 rgba(255,255,255,0.4)",
+        cursor: "pointer",
+        userSelect: "none",
       }}
     >
-      {value}
+      {glyph}
     </div>
   );
 }
 
-function MenuLabel({ children }: { children: React.ReactNode }) {
+function TimeSphere({
+  x,
+  y,
+  size,
+  value,
+  label,
+}: {
+  x: number;
+  y: number;
+  size: number;
+  value: string;
+  label?: string;
+}) {
   return (
-    <span
-      className="text-white/90"
-      style={{ textShadow: "1px 1px 0 rgba(0,0,0,0.7)" }}
+    <div className="absolute" style={{ left: x, top: y, width: size }}>
+      <div
+        style={{
+          width: size,
+          height: size,
+          borderRadius: "50%",
+          background: `radial-gradient(circle at 32% 28%, #fff 0%, #bcd3ff 14%, #4a78e8 50%, #0a1c7a 100%)`,
+          boxShadow: `0 4px 8px rgba(0,0,0,0.55), inset -4px -5px 12px rgba(0,0,0,0.5)`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontFamily: "Arial Black, Arial, sans-serif",
+          fontWeight: 900,
+          fontSize: size * 0.45,
+          color: "#fff",
+          textShadow: "2px 2px 0 rgba(0,0,0,0.55)",
+        }}
+      >
+        {value}
+      </div>
+      {label && (
+        <div
+          style={{
+            textAlign: "center",
+            marginTop: 4,
+            fontFamily: "Arial Black, Arial, sans-serif",
+            fontWeight: 900,
+            fontSize: 14,
+            color: "#fff",
+            letterSpacing: 1,
+            textShadow: "1px 1px 0 rgba(0,0,0,0.6)",
+          }}
+        >
+          {label}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Bubble({
+  x,
+  y,
+  r,
+  opacity,
+}: {
+  x: number;
+  y: number;
+  r: number;
+  opacity: number;
+}) {
+  return (
+    <div
+      className="absolute pointer-events-none"
+      style={{
+        left: x - r,
+        top: y - r,
+        width: r * 2,
+        height: r * 2,
+        borderRadius: "50%",
+        background: `radial-gradient(circle at 32% 28%, #fff 0%, #bcd3ff 12%, #4a78e8 55%, #0a1c7a 100%)`,
+        opacity,
+      }}
+    />
+  );
+}
+
+function MenuButton({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        padding: "4px 14px",
+        background:
+          "linear-gradient(180deg, rgba(80,70,180,0.5) 0%, rgba(30,20,100,0.6) 100%)",
+        border: "2px solid #6a7fe5",
+        fontFamily: "Arial Black, Arial, sans-serif",
+        fontWeight: 900,
+        fontSize: 14,
+        color: "#fff",
+        letterSpacing: 1,
+        textShadow: "1px 1px 0 rgba(0,0,0,0.5)",
+        cursor: "pointer",
+        userSelect: "none",
+      }}
     >
       {children}
-    </span>
+    </div>
   );
 }
