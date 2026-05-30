@@ -29,6 +29,13 @@ export function WinampPlayer({ onSwitchToPS1 }: { onSwitchToPS1: () => void }) {
             ▣ Y2K Player 2.95
           </span>
           <div className="flex gap-1">
+            <button
+              onClick={() => setGeiss(true)}
+              title="Fullscreen visualizer (Geiss)"
+              className="bevel-btn w-4 h-4 text-[9px] leading-none flex items-center justify-center text-black"
+            >
+              ⛶
+            </button>
             {["_", "▢", "✕"].map((c) => (
               <button
                 key={c}
