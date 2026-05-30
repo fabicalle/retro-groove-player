@@ -11,6 +11,7 @@ import { GeissVisualizer } from "./GeissVisualizer";
 export function PS1Container() {
   const [time, setTime] = useState({ track: 0, min: 0, sec: 0 });
   const [selected, setSelected] = useState<number | null>(null);
+  const [geiss, setGeiss] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => {
