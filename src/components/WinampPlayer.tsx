@@ -8,6 +8,7 @@ export function WinampPlayer({ onSwitchToPS1 }: { onSwitchToPS1: () => void }) {
   const [elapsed, setElapsed] = useState(0);
   const [vol, setVol] = useState(75);
   const [bal, setBal] = useState(50);
+  const [geiss, setGeiss] = useState(false);
 
   useEffect(() => {
     if (!playing) return;
