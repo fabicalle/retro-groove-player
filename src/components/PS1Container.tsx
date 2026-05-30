@@ -93,8 +93,10 @@ export function PS1Container() {
       {/* Big SEC sphere */}
       <TimeSphere x={320} y={55} size={72} value={pad2(time.sec)} label="SEC" />
 
-      {/* === CD PLAYER label (top-right) === */}
-      <div
+      {/* === CD PLAYER label (top-right) — click to launch visualizer === */}
+      <button
+        onClick={() => setGeiss(true)}
+        title="Launch visualizer"
         className="absolute flex items-center justify-center"
         style={{
           right: 28,
@@ -104,6 +106,8 @@ export function PS1Container() {
           background: "#0a0428",
           border: "3px solid #6a7fe5",
           boxShadow: "inset 0 0 8px rgba(0,0,0,0.6)",
+          cursor: "pointer",
+          padding: 0,
         }}
       >
         <span
