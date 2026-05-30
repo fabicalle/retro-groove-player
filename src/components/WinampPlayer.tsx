@@ -23,6 +23,7 @@ export function WinampPlayer({ onSwitchToPS1 }: { onSwitchToPS1: () => void }) {
     <>
     {geiss && <GeissVisualizer variant="winamp" onExit={() => setGeiss(false)} />}
     <div className="w-[460px] max-w-full select-none">
+      <div className="bevel-out p-[2px]">
         <div className="title-bar-gradient flex items-center justify-between px-2 py-[3px]">
           <span className="text-[10px] font-bold tracking-widest text-white/90 uppercase">
             ▣ Y2K Player 2.95
