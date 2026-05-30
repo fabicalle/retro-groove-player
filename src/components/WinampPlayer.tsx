@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { WaveVisualizer } from "./WaveVisualizer";
 import { SpotifyConnect } from "./SpotifyConnect";
+import { GeissVisualizer } from "./GeissVisualizer";
 
 export function WinampPlayer({ onSwitchToPS1 }: { onSwitchToPS1: () => void }) {
   const [playing, setPlaying] = useState(true);
   const [elapsed, setElapsed] = useState(0);
   const [vol, setVol] = useState(75);
   const [bal, setBal] = useState(50);
+  const [geiss, setGeiss] = useState(false);
 
   useEffect(() => {
     if (!playing) return;
@@ -18,6 +20,8 @@ export function WinampPlayer({ onSwitchToPS1 }: { onSwitchToPS1: () => void }) {
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
   return (
+    <>
+    {geiss && <GeissVisualizer variant="winamp" onExit={() => setGeiss(false)} />}
     <div className="w-[460px] max-w-full select-none">
       <div className="bevel-out p-[2px]">
         <div className="title-bar-gradient flex items-center justify-between px-2 py-[3px]">
@@ -25,6 +29,13 @@ export function WinampPlayer({ onSwitchToPS1 }: { onSwitchToPS1: () => void }) {
             ▣ Y2K Player 2.95
           </span>
           <div className="flex gap-1">
+            <button
+              onClick={() => setGeiss(true)}
+              title="Fullscreen visualizer (Geiss)"
+              className="bevel-btn w-4 h-4 text-[9px] leading-none flex items-center justify-center text-black"
+            >
+              ⛶
+            </button>
             {["_", "▢", "✕"].map((c) => (
               <button
                 key={c}
@@ -123,6 +134,7 @@ export function WinampPlayer({ onSwitchToPS1 }: { onSwitchToPS1: () => void }) {
         <span>v2.95 · Y2K</span>
       </div>
     </div>
+    </>
   );
 }
 

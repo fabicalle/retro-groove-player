@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { GeissVisualizer } from "./GeissVisualizer";
 
 /**
  * Pixel-faithful recreation of the SCPH-1001 PlayStation BIOS "CD PLAYER" screen.
@@ -10,6 +11,7 @@ import { useEffect, useState } from "react";
 export function PS1Container() {
   const [time, setTime] = useState({ track: 0, min: 0, sec: 0 });
   const [selected, setSelected] = useState<number | null>(null);
+  const [geiss, setGeiss] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -43,6 +45,8 @@ export function PS1Container() {
   ];
 
   return (
+    <>
+    {geiss && <GeissVisualizer variant="ps1" onExit={() => setGeiss(false)} />}
     <div
       className="relative overflow-hidden"
       style={{
@@ -91,8 +95,10 @@ export function PS1Container() {
       {/* Big SEC sphere */}
       <TimeSphere x={320} y={55} size={72} value={pad2(time.sec)} label="SEC" />
 
-      {/* === CD PLAYER label (top-right) === */}
-      <div
+      {/* === CD PLAYER label (top-right) — click to launch visualizer === */}
+      <button
+        onClick={() => setGeiss(true)}
+        title="Launch visualizer"
         className="absolute flex items-center justify-center"
         style={{
           right: 28,
@@ -102,6 +108,8 @@ export function PS1Container() {
           background: "#0a0428",
           border: "3px solid #6a7fe5",
           boxShadow: "inset 0 0 8px rgba(0,0,0,0.6)",
+          cursor: "pointer",
+          padding: 0,
         }}
       >
         <span
@@ -116,7 +124,7 @@ export function PS1Container() {
         >
           CD PLAYER
         </span>
-      </div>
+      </button>
 
       {/* === INFO PANEL (with pink triangle cursor + CONTINUE) === */}
       <div
@@ -267,6 +275,7 @@ export function PS1Container() {
         </span>
       </div>
     </div>
+    </>
   );
 }
 
