@@ -45,6 +45,8 @@ export function PS1Container() {
   ];
 
   return (
+    <>
+    {geiss && <GeissVisualizer variant="ps1" onExit={() => setGeiss(false)} />}
     <div
       className="relative overflow-hidden"
       style={{
