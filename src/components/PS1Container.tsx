@@ -122,7 +122,7 @@ export function PS1Container() {
         >
           CD PLAYER
         </span>
-      </div>
+      </button>
 
       {/* === INFO PANEL (with pink triangle cursor + CONTINUE) === */}
       <div
