@@ -275,6 +275,7 @@ export function PS1Container() {
         </span>
       </div>
     </div>
+    </>
   );
 }
 
