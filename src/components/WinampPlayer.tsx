@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { WaveVisualizer } from "./WaveVisualizer";
 import { SpotifyConnect } from "./SpotifyConnect";
+import { GeissVisualizer } from "./GeissVisualizer";
 
 export function WinampPlayer({ onSwitchToPS1 }: { onSwitchToPS1: () => void }) {
   const [playing, setPlaying] = useState(true);
