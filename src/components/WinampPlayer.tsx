@@ -127,6 +127,7 @@ export function WinampPlayer({ onSwitchToPS1 }: { onSwitchToPS1: () => void }) {
         <span>v2.95 · Y2K</span>
       </div>
     </div>
+    </>
   );
 }
 
