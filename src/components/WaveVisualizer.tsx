@@ -36,8 +36,7 @@ export function WaveVisualizer() {
         const segH = 3;
         for (let y = H - 2; y > H - h; y -= segH + 1) {
           const ratio = (H - y) / H;
-          const hue =
-            ratio < 0.4 ? "#1bff5a" : ratio < 0.7 ? "#e8ff1b" : "#ff3b1b";
+          const hue = ratio < 0.4 ? "#1bff5a" : ratio < 0.7 ? "#e8ff1b" : "#ff3b1b";
           ctx.fillStyle = hue;
           ctx.fillRect(x, y - segH, barW, segH);
         }

@@ -49,8 +49,7 @@ export function PS1Boot({ onDone }: { onDone: () => void }) {
       <div
         className="absolute inset-0 pointer-events-none z-30"
         style={{
-          background:
-            "radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.8) 100%)",
+          background: "radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.8) 100%)",
         }}
       />
 
@@ -81,21 +80,15 @@ function SonyScreen() {
         <div
           className="absolute inset-0 rotate-45"
           style={{
-            background:
-              "linear-gradient(135deg, #f0f0f0 0%, #888 50%, #f0f0f0 100%)",
+            background: "linear-gradient(135deg, #f0f0f0 0%, #888 50%, #f0f0f0 100%)",
             boxShadow: "0 0 20px rgba(255,255,255,0.5)",
           }}
         />
-        <div
-          className="absolute inset-2 rotate-45"
-          style={{ background: "#000" }}
-        />
+        <div className="absolute inset-2 rotate-45" style={{ background: "#000" }} />
       </div>
       <div className="text-center">
         <div className="text-2xl tracking-[0.3em]">SONY</div>
-        <div className="text-[10px] tracking-[0.4em] mt-2 opacity-90">
-          COMPUTER ENTERTAINMENT
-        </div>
+        <div className="text-[10px] tracking-[0.4em] mt-2 opacity-90">COMPUTER ENTERTAINMENT</div>
       </div>
       <div className="text-[8px] tracking-widest opacity-50 mt-8">
         Licensed by Sony Computer Entertainment Inc.
@@ -122,10 +115,8 @@ function PSScreen() {
           className="absolute inset-0"
           style={{
             transform: "rotate(45deg)",
-            background:
-              "linear-gradient(135deg, #ff2a2a 0%, #ff7a2a 50%, #ffcf2a 100%)",
-            boxShadow:
-              "0 0 60px rgba(255,80,40,0.7), inset 0 0 30px rgba(0,0,0,0.4)",
+            background: "linear-gradient(135deg, #ff2a2a 0%, #ff7a2a 50%, #ffcf2a 100%)",
+            boxShadow: "0 0 60px rgba(255,80,40,0.7), inset 0 0 30px rgba(0,0,0,0.4)",
             animation: "psSpin 3s ease-out forwards",
           }}
         />

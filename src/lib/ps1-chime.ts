@@ -78,11 +78,7 @@ export async function playPS1Chime(): Promise<void> {
   setTimeout(() => ctx.close().catch(() => {}), 6000);
 }
 
-function makeImpulseResponse(
-  ctx: AudioContext,
-  durationSec: number,
-  decay: number,
-): AudioBuffer {
+function makeImpulseResponse(ctx: AudioContext, durationSec: number, decay: number): AudioBuffer {
   const rate = ctx.sampleRate;
   const length = rate * durationSec;
   const impulse = ctx.createBuffer(2, length, rate);

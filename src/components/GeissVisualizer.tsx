@@ -5,11 +5,43 @@ import { useEffect, useRef, useState } from "react";
  *  - Play/Pause animation
  *  - Style presets (Classic / Tunnel / Mirror / Plasma)
  *  - Sensitivity slider (amplitude multiplier)
- * Exit via ESC or the EXIT button (clicking the canvas no longer exits,
- * so users can interact with controls without dismissing the view).
+ *  - Settings persisted in localStorage
+ *  - Mouse wheel cycles styles, touch gestures for mobile
+ * Exit via ESC or the EXIT button.
  */
 
 type Style = "classic" | "tunnel" | "mirror" | "plasma";
+const STYLES: Style[] = ["classic", "tunnel", "mirror", "plasma"];
+
+const STORAGE_KEY = "geiss_settings";
+
+interface GeissSettings {
+  style: Style;
+  sensitivity: number;
+  playing: boolean;
+}
+
+function loadSettings(): GeissSettings {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const s = JSON.parse(raw);
+      return {
+        style: STYLES.includes(s.style) ? s.style : "classic",
+        sensitivity:
+          typeof s.sensitivity === "number" ? Math.max(0.2, Math.min(2.5, s.sensitivity)) : 1,
+        playing: typeof s.playing === "boolean" ? s.playing : true,
+      };
+    }
+  } catch {
+    /* ignore */
+  }
+  return { style: "classic", sensitivity: 1, playing: true };
+}
+
+function saveSettings(s: GeissSettings) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+}
 
 export function GeissVisualizer({
   onExit,
@@ -18,18 +50,25 @@ export function GeissVisualizer({
   onExit: () => void;
   variant?: "winamp" | "ps1";
 }) {
+  const saved = useRef(loadSettings());
   const ref = useRef<HTMLCanvasElement>(null);
-  const [playing, setPlaying] = useState(true);
-  const [style, setStyle] = useState<Style>("classic");
-  const [sensitivity, setSensitivity] = useState(1);
+  const [playing, setPlaying] = useState(saved.current.playing);
+  const [style, setStyle] = useState<Style>(saved.current.style);
+  const [sensitivity, setSensitivity] = useState(saved.current.sensitivity);
 
   // refs so the rAF loop reads latest values without re-subscribing
   const playingRef = useRef(playing);
   const styleRef = useRef(style);
   const sensRef = useRef(sensitivity);
-  useEffect(() => void (playingRef.current = playing), [playing]);
+  useEffect(() => {
+    playingRef.current = playing;
+    saveSettings({ style, sensitivity, playing });
+  }, [playing, style, sensitivity]);
   useEffect(() => void (styleRef.current = style), [style]);
   useEffect(() => void (sensRef.current = sensitivity), [sensitivity]);
+
+  // Touch gesture refs
+  const touchStartRef = useRef<{ x: number; y: number; t: number } | null>(null);
 
   useEffect(() => {
     const canvas = ref.current!;
@@ -91,10 +130,7 @@ export function GeissVisualizer({
       ctx.shadowColor = `hsl(${(hue + 60) % 360}, 100%, 60%)`;
       ctx.shadowBlur = 8;
 
-      const drawWave = (
-        color: string,
-        fn: (u: number) => number,
-      ) => {
+      const drawWave = (color: string, fn: (u: number) => number) => {
         ctx.strokeStyle = color;
         ctx.beginPath();
         for (let x = 0; x <= W; x += 2) {
@@ -116,14 +152,11 @@ export function GeissVisualizer({
         );
         drawWave(
           `hsl(${(hue + 180) % 360}, 100%, 60%)`,
-          (u) =>
-            Math.cos(u * 14 - t * 1.7) * amp * 0.5 +
-            Math.sin(u * 5 + t * 0.9) * amp * 0.5,
+          (u) => Math.cos(u * 14 - t * 1.7) * amp * 0.5 + Math.sin(u * 5 + t * 0.9) * amp * 0.5,
         );
       } else if (s === "mirror") {
         const wave = (u: number) =>
-          Math.sin(u * 12 + t * 2) * amp * 0.7 +
-          Math.sin(u * 4 - t * 1.1) * amp * 0.4;
+          Math.sin(u * 12 + t * 2) * amp * 0.7 + Math.sin(u * 4 - t * 1.1) * amp * 0.4;
         drawWave(`hsl(${hue}, 100%, 65%)`, wave);
         drawWave(`hsl(${(hue + 120) % 360}, 100%, 65%)`, (u) => -wave(u));
       } else if (s === "plasma") {
@@ -155,20 +188,86 @@ export function GeissVisualizer({
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onExit();
-      if (e.key === " ") setPlaying((p) => !p);
+      if (e.key === " ") {
+        e.preventDefault();
+        setPlaying((p) => !p);
+      }
+      if (e.key === "ArrowRight") {
+        setStyle((s) => STYLES[(STYLES.indexOf(s) + 1) % STYLES.length]);
+      }
+      if (e.key === "ArrowLeft") {
+        setStyle((s) => STYLES[(STYLES.indexOf(s) - 1 + STYLES.length) % STYLES.length]);
+      }
+      if (e.key === "ArrowUp") {
+        setSensitivity((v) => Math.min(2.5, +(v + 0.1).toFixed(1)));
+      }
+      if (e.key === "ArrowDown") {
+        setSensitivity((v) => Math.max(0.2, +(v - 0.1).toFixed(1)));
+      }
     };
     window.addEventListener("keydown", onKey);
+
+    // ── Mouse wheel: cycle styles ──
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      if (e.deltaY < 0) {
+        setStyle((s) => STYLES[(STYLES.indexOf(s) + 1) % STYLES.length]);
+      } else {
+        setStyle((s) => STYLES[(STYLES.indexOf(s) - 1 + STYLES.length) % STYLES.length]);
+      }
+    };
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+
+    // ── Touch: swipe horizontal = style, swipe vertical = sensitivity, tap = play/pause ──
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        touchStartRef.current = {
+          x: e.touches[0].clientX,
+          y: e.touches[0].clientY,
+          t: Date.now(),
+        };
+      }
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      if (!touchStartRef.current || e.changedTouches.length !== 1) {
+        touchStartRef.current = null;
+        return;
+      }
+      const dx = e.changedTouches[0].clientX - touchStartRef.current.x;
+      const dy = e.changedTouches[0].clientY - touchStartRef.current.y;
+      const dt = Date.now() - touchStartRef.current.t;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      touchStartRef.current = null;
+
+      if (dist < 15 && dt < 300) {
+        // Tap — toggle play/pause
+        setPlaying((p) => !p);
+      } else if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        // Horizontal swipe — change style
+        if (dx > 0) setStyle((s) => STYLES[(STYLES.indexOf(s) + 1) % STYLES.length]);
+        else setStyle((s) => STYLES[(STYLES.indexOf(s) - 1 + STYLES.length) % STYLES.length]);
+      } else if (Math.abs(dy) > 50 && Math.abs(dy) > Math.abs(dx) * 1.5) {
+        // Vertical swipe — adjust sensitivity
+        if (dy < 0) setSensitivity((v) => Math.min(2.5, +(v + 0.2).toFixed(1)));
+        else setSensitivity((v) => Math.max(0.2, +(v - 0.2).toFixed(1)));
+      }
+    };
+    canvas.addEventListener("touchstart", onTouchStart, { passive: true });
+    canvas.addEventListener("touchend", onTouchEnd, { passive: true });
+
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("keydown", onKey);
+      canvas.removeEventListener("wheel", onWheel);
+      canvas.removeEventListener("touchstart", onTouchStart);
+      canvas.removeEventListener("touchend", onTouchEnd);
     };
   }, [onExit]);
 
   const accent = variant === "ps1" ? "#bcd3ff" : "#00ff66";
-  const styles: Style[] = ["classic", "tunnel", "mirror", "plasma"];
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black flex items-center justify-center">
+    <div className="fixed inset-0 z-[60] bg-black flex items-center justify-center touch-none">
       <canvas
         ref={ref}
         className="w-full h-full"
@@ -212,7 +311,7 @@ export function GeissVisualizer({
 
         <div className="flex items-center gap-1">
           <span className="opacity-60">Style</span>
-          {styles.map((s) => (
+          {STYLES.map((s) => (
             <button
               key={s}
               onClick={() => setStyle(s)}
@@ -253,6 +352,14 @@ export function GeissVisualizer({
         >
           ✕ Exit
         </button>
+      </div>
+
+      {/* Touch hint for mobile */}
+      <div
+        className="absolute top-4 right-4 text-[9px] pointer-events-none opacity-40 sm:hidden"
+        style={{ color: accent, fontFamily: "monospace" }}
+      >
+        SWIPE ←→ STYLE · ↕ SENS · TAP ▶⏸
       </div>
     </div>
   );

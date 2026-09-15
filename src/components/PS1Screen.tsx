@@ -30,10 +30,8 @@ export function PS1Screen({ onExit }: { onExit: () => void }) {
           height: 480 * scale + 36,
           borderRadius: 24,
           padding: 18,
-          background:
-            "linear-gradient(145deg,#2a2a2a 0%,#0a0a0a 60%,#1a1a1a 100%)",
-          boxShadow:
-            "0 0 80px rgba(80,140,255,0.25), inset 0 0 30px rgba(0,0,0,0.9)",
+          background: "linear-gradient(145deg,#2a2a2a 0%,#0a0a0a 60%,#1a1a1a 100%)",
+          boxShadow: "0 0 80px rgba(80,140,255,0.25), inset 0 0 30px rgba(0,0,0,0.9)",
         }}
       >
         {/* Inner CRT screen */}

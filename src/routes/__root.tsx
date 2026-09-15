@@ -73,10 +73,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Y2K Player — Winamp Clone" },
-      { name: "description", content: "Reproductor retro estilo Winamp 2.x con visualizador 2D y modo PS1 3D." },
+      {
+        name: "description",
+        content: "Reproductor retro estilo Winamp 2.x con visualizador 2D y modo PS1 3D.",
+      },
       { name: "author", content: "Y2K Player" },
       { property: "og:title", content: "Y2K Player — Winamp Clone" },
-      { property: "og:description", content: "Reproductor retro estilo Winamp 2.x con visualizador 2D y modo PS1 3D." },
+      {
+        property: "og:description",
+        content: "Reproductor retro estilo Winamp 2.x con visualizador 2D y modo PS1 3D.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
