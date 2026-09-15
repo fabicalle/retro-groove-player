@@ -56,6 +56,11 @@ export function GeissVisualizer({
   const [style, setStyle] = useState<Style>(saved.current.style);
   const [sensitivity, setSensitivity] = useState(saved.current.sensitivity);
 
+  // Keep latest onExit in a ref so the rAF loop + key handler can call it
+  // without depending on the parent's inline callback identity.
+  const onExitRef = useRef(onExit);
+  onExitRef.current = onExit;
+
   // refs so the rAF loop reads latest values without re-subscribing
   const playingRef = useRef(playing);
   const styleRef = useRef(style);
@@ -187,7 +192,7 @@ export function GeissVisualizer({
     raf = requestAnimationFrame(tick);
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onExit();
+      if (e.key === "Escape") onExitRef.current();
       if (e.key === " ") {
         e.preventDefault();
         setPlaying((p) => !p);
@@ -262,7 +267,7 @@ export function GeissVisualizer({
       canvas.removeEventListener("touchstart", onTouchStart);
       canvas.removeEventListener("touchend", onTouchEnd);
     };
-  }, [onExit]);
+  }, []);
 
   const accent = variant === "ps1" ? "#bcd3ff" : "#00ff66";
 

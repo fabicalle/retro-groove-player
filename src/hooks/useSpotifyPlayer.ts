@@ -110,6 +110,7 @@ export function useSpotifyPlayer() {
     return () => {
       if (playerRef.current) {
         playerRef.current.disconnect();
+        playerRef.current = null;
       }
     };
   }, [isAuthenticated, setTrack, getAccessToken]);
@@ -124,13 +125,14 @@ export function useSpotifyPlayer() {
     if (!token) return;
     const newState = !shuffle;
     try {
-      await fetch(`https://api.spotify.com/v1/me/player/shuffle?state=${newState}`, {
+      const res = await fetch(`https://api.spotify.com/v1/me/player/shuffle?state=${newState}`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (!res.ok) throw new Error(`shuffle toggle failed: ${res.status}`);
       setShuffle(newState);
-    } catch {
-      // silently fail
+    } catch (err) {
+      console.error("[Spotify] toggleShuffle failed:", err);
     }
   };
 

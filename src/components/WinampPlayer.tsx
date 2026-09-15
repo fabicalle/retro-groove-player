@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { WaveVisualizer } from "./WaveVisualizer";
 import { SpotifyConnect } from "./SpotifyConnect";
 import { GeissVisualizer } from "./GeissVisualizer";
@@ -7,10 +7,11 @@ import { useSpotifyPlaylists } from "../hooks/useSpotifyPlaylists";
 import { useSpotifyPlayer } from "../hooks/useSpotifyPlayer";
 
 export function WinampPlayer({ onSwitchToPS1 }: { onSwitchToPS1: () => void }) {
+  // Fake track length (seconds) used for the progress bar; mirrors the
+  // default "WINAMP MODE" track shown when Spotify is offline.
+  const TRACK_LENGTH = 257;
   const [playing, setPlaying] = useState(true);
   const [elapsed, setElapsed] = useState(0);
-  const [vol, setVol] = useState(75);
-  const [bal, setBal] = useState(50);
   const [geiss, setGeiss] = useState(false);
   const [showPlaylist, setShowPlaylist] = useState(false);
 
@@ -36,16 +37,9 @@ export function WinampPlayer({ onSwitchToPS1 }: { onSwitchToPS1: () => void }) {
     }
   }, [isAuthenticated, spotify.isReady, spotify.isPlaying]);
 
-  const handleFileClick = useCallback(() => {
-    if (!isAuthenticated) return;
-    const willOpen = !showPlaylist;
-    setShowPlaylist(willOpen);
-    if (willOpen) fetchPlaylists();
-  }, [isAuthenticated, showPlaylist, fetchPlaylists]);
-
   useEffect(() => {
     if (!playing) return;
-    const id = setInterval(() => setElapsed((e) => (e + 1) % 257), 1000);
+    const id = setInterval(() => setElapsed((e) => (e + 1) % TRACK_LENGTH), 1000);
     return () => clearInterval(id);
   }, [playing]);
 
@@ -82,7 +76,12 @@ export function WinampPlayer({ onSwitchToPS1 }: { onSwitchToPS1: () => void }) {
 
           <div className="bevel-out flex items-stretch gap-[2px] p-[2px] border-t-0">
             <button
-              onClick={handleFileClick}
+              onClick={() => {
+                if (!isAuthenticated) return;
+                const willOpen = !showPlaylist;
+                setShowPlaylist(willOpen);
+                if (willOpen) fetchPlaylists();
+              }}
               className="bevel-btn px-2 text-xs text-black hover:bg-[var(--winamp-chrome-light)]"
               style={{
                 color: showPlaylist ? "var(--winamp-lcd)" : undefined,
@@ -92,8 +91,12 @@ export function WinampPlayer({ onSwitchToPS1 }: { onSwitchToPS1: () => void }) {
             >
               File
             </button>
-            <MenuItem>Play</MenuItem>
-            <MenuItem>Options</MenuItem>
+            <button className="bevel-btn px-2 text-xs text-black hover:bg-[var(--winamp-chrome-light)]">
+              Play
+            </button>
+            <button className="bevel-btn px-2 text-xs text-black hover:bg-[var(--winamp-chrome-light)]">
+              Options
+            </button>
             <div className="flex-1" />
             <button
               onClick={onSwitchToPS1}
@@ -124,20 +127,18 @@ export function WinampPlayer({ onSwitchToPS1 }: { onSwitchToPS1: () => void }) {
             <div className="bevel-in px-2 py-1 overflow-hidden">
               <div className="lcd-text text-sm whitespace-nowrap animate-[marquee_18s_linear_infinite]">
                 {currentTrack?.name
-                  ? `★ ${currentTrack.name} — ${(currentTrack.artists ?? []).map((a: { name: string }) => a.name).join(", ")} ····· Y2K Player · SPOTIFY ·····`
+                  ? `★ ${currentTrack.name} — ${(currentTrack.artists ?? []).map((a) => a.name).join(", ")} ····· Y2K Player · SPOTIFY ·····`
                   : "★ 01. The Prodigy — Smack My Ash Up · (4:17) ····· Y2K Player · WINAMP MODE ·····"}
               </div>
               <style>{`@keyframes marquee { from { transform: translateX(100%);} to {transform: translateX(-100%);} }`}</style>
             </div>
 
             <div className="flex items-center gap-2">
-              <Slider label="VOL" value={vol} onChange={setVol} />
-              <Slider label="BAL" value={bal} onChange={setBal} />
               <div className="bevel-in px-2 py-1 flex-1">
                 <div className="h-2 bg-black/50 relative">
                   <div
                     className="absolute inset-y-0 left-0 bg-[var(--winamp-lcd)]"
-                    style={{ width: `${(elapsed / 257) * 100}%` }}
+                    style={{ width: `${(elapsed / TRACK_LENGTH) * 100}%` }}
                   />
                 </div>
               </div>
@@ -234,7 +235,6 @@ export function WinampPlayer({ onSwitchToPS1 }: { onSwitchToPS1: () => void }) {
                     <button
                       key={pl.id}
                       onClick={() => {
-                        console.log("[WinampPlayer] Playlist clicked:", pl.id, pl.name);
                         fetchTracks(pl);
                       }}
                       onDoubleClick={() => playPlaylist(pl.id, spotify.deviceId)}
@@ -310,38 +310,6 @@ export function WinampPlayer({ onSwitchToPS1 }: { onSwitchToPS1: () => void }) {
         </div>
       </div>
     </>
-  );
-}
-
-function MenuItem({ children }: { children: React.ReactNode }) {
-  return (
-    <button className="bevel-btn px-2 text-xs text-black hover:bg-[var(--winamp-chrome-light)]">
-      {children}
-    </button>
-  );
-}
-
-function Slider({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  onChange: (n: number) => void;
-}) {
-  return (
-    <div className="flex items-center gap-1">
-      <span className="text-[9px] lcd-text">{label}</span>
-      <input
-        type="range"
-        min={0}
-        max={100}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-20 h-2 accent-[var(--winamp-lcd)]"
-      />
-    </div>
   );
 }
 

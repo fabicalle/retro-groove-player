@@ -4,7 +4,9 @@
  * Not an exact reproduction (copyrighted), but evokes the same feeling.
  */
 export async function playPS1Chime(): Promise<void> {
-  const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+  const Ctx =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!Ctx) return;
   const ctx: AudioContext = new Ctx();
   if (ctx.state === "suspended") await ctx.resume();

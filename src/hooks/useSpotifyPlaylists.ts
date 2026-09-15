@@ -46,13 +46,11 @@ export function useSpotifyPlaylists() {
       });
       if (res.status === 401 || res.status === 403) {
         // 403 can also mean the token was revoked or scopes are insufficient
-        console.error(`[Spotify] authFetch ${res.status} for ${url}`);
+        const body = await res.text();
         if (res.status === 401) {
           logout();
           throw new Error("Token expired");
         }
-        const body = await res.text();
-        console.error("[Spotify] 403 body:", body);
         throw new Error(`Spotify API 403: ${body}`);
       }
       if (!res.ok) {
@@ -82,19 +80,13 @@ export function useSpotifyPlaylists() {
 
   const fetchTracks = useCallback(
     async (playlist: SpotifyPlaylist) => {
-      console.log("[Spotify] fetchTracks called:", playlist.id, playlist.name, "auth:", isAuthenticated);
       if (!isAuthenticated) return;
       setLoading(true);
       setError(null);
       setActivePlaylist(playlist);
       try {
-        // Use the full playlist endpoint (not /tracks) — it has broader permissions
-        const res = await authFetch(
-          `https://api.spotify.com/v1/playlists/${playlist.id}`,
-        );
+        const res = await authFetch(`https://api.spotify.com/v1/playlists/${playlist.id}`);
         const data = await res.json();
-        console.log("[Spotify] Playlist data keys:", Object.keys(data));
-        console.log("[Spotify] tracks items count:", data.tracks?.items?.length);
 
         const allItems: SpotifyPlaylistTrack[] = (data.tracks?.items ?? [])
           .filter((item: { track: SpotifyPlaylistTrack | null }) => item.track && item.track.id)
@@ -105,7 +97,6 @@ export function useSpotifyPlaylists() {
         while (nextUrl) {
           const pageRes = await authFetch(nextUrl);
           const pageData = await pageRes.json();
-          console.log("[Spotify] tracks next page items:", pageData.items?.length);
           const page: SpotifyPlaylistTrack[] = (pageData.items ?? [])
             .filter((item: { track: SpotifyPlaylistTrack | null }) => item.track && item.track.id)
             .map((item: { track: SpotifyPlaylistTrack }) => item.track);
@@ -113,7 +104,6 @@ export function useSpotifyPlaylists() {
           nextUrl = pageData.next ?? null;
         }
 
-        console.log("[Spotify] Total parsed tracks:", allItems.length);
         setTracks(allItems);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load tracks");

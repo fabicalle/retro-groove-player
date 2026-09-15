@@ -9,8 +9,7 @@
 const STORAGE_KEY = "sp_session";
 const CRYPTO_KEY_NAME = "sp_ck";
 
-const hasSubtle =
-  typeof window !== "undefined" && !!window.crypto?.subtle;
+const hasSubtle = typeof window !== "undefined" && !!window.crypto?.subtle;
 
 // ── Crypto-based path (secure contexts) ──
 
@@ -30,9 +29,12 @@ async function getCryptoKey(): Promise<CryptoKey> {
     sessionStorage.setItem(CRYPTO_KEY_NAME, rawB64);
   }
 
+  // Cast to ArrayBufferView to satisfy the Web Crypto overload on TS 5.8
+  // (newer TS widens Uint8Array to ArrayBufferLike-backed types).
+  const keyMaterial = rawBytes as unknown as ArrayBufferView<ArrayBuffer>;
   _cachedKey = await window.crypto.subtle.importKey(
     "raw",
-    rawBytes,
+    keyMaterial,
     { name: "AES-GCM" },
     false,
     ["encrypt", "decrypt"],
@@ -44,21 +46,11 @@ async function getCryptoKey(): Promise<CryptoKey> {
 // ── Obfuscation fallback (non-secure contexts) ──
 
 function obfuscate(data: string): string {
-  return btoa(
-    encodeURIComponent(data)
-      .split("")
-      .reverse()
-      .join(""),
-  );
+  return btoa(encodeURIComponent(data).split("").reverse().join(""));
 }
 
 function deobfuscate(data: string): string {
-  return decodeURIComponent(
-    atob(data)
-      .split("")
-      .reverse()
-      .join(""),
-  );
+  return decodeURIComponent(atob(data).split("").reverse().join(""));
 }
 
 export interface SecureTokenData {
@@ -73,11 +65,7 @@ export async function saveTokens(data: SecureTokenData): Promise<void> {
       const key = await getCryptoKey();
       const iv = crypto.getRandomValues(new Uint8Array(12));
       const encoded = new TextEncoder().encode(JSON.stringify(data));
-      const ciphertext = await window.crypto.subtle.encrypt(
-        { name: "AES-GCM", iv },
-        key,
-        encoded,
-      );
+      const ciphertext = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoded);
       const combined = new Uint8Array(iv.length + new Uint8Array(ciphertext).length);
       combined.set(iv);
       combined.set(new Uint8Array(ciphertext), iv.length);

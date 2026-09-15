@@ -6,13 +6,22 @@ import {
   type TokenResponse,
 } from "../lib/spotify";
 
+// Minimal shape of a Spotify track as returned by the Web Playback SDK.
+export interface SpotifyTrack {
+  name: string;
+  uri: string;
+  artists: { name: string }[];
+  album: { name?: string; images: { url: string }[] };
+  duration_ms: number;
+}
+
 interface SpotifyState {
   isAuthenticated: boolean;
-  currentTrack: Spotify.Track | null;
+  currentTrack: Partial<SpotifyTrack> | null;
   /** True while restoring session from encrypted storage */
   isRestoring: boolean;
   setAuth: (tokens: TokenResponse) => void;
-  setTrack: (track: Spotify.Track) => void;
+  setTrack: (track: Partial<SpotifyTrack>) => void;
   logout: () => void;
   /** Attempt to restore a persisted session (called once on app boot) */
   restoreSession: () => Promise<void>;
