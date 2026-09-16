@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
-import { WaveVisualizer } from "./WaveVisualizer";
-import { SpotifyConnect } from "./SpotifyConnect";
-import { GeissVisualizer } from "./GeissVisualizer";
-import { useSpotifyStore } from "../store/useSpotifyStore";
-import { useSpotifyPlaylists } from "../hooks/useSpotifyPlaylists";
-import { useSpotifyPlayer } from "../hooks/useSpotifyPlayer";
+import { WinampVisualizer } from "@/presentation/components/WinampVisualizer";
+import {
+  SpotifyConnect,
+  SpotifyPremiumBanner,
+} from "@/presentation/components/player/SpotifyConnect";
+import { GeissVisualizer } from "@/presentation/components/GeissVisualizer";
+import { useSpotifyStore } from "@/store/useSpotifyStore";
+import { useSpotifyPlaylists } from "@/hooks/useSpotifyPlaylists";
+import { useSpotifyPlayer } from "@/hooks/useSpotifyPlayer";
 
 export function WinampPlayer({ onSwitchToPS1 }: { onSwitchToPS1: () => void }) {
   // Fake track length (seconds) used for the progress bar; mirrors the
@@ -120,7 +123,7 @@ export function WinampPlayer({ onSwitchToPS1 }: { onSwitchToPS1: () => void }) {
                 </div>
               </div>
               <div className="bevel-in flex-1 overflow-hidden relative" style={{ height: 76 }}>
-                <WaveVisualizer />
+                <WinampVisualizer width={300} height={76} />
               </div>
             </div>
 
@@ -201,6 +204,7 @@ export function WinampPlayer({ onSwitchToPS1 }: { onSwitchToPS1: () => void }) {
             </div>
 
             <SpotifyConnect />
+            <SpotifyPremiumBanner />
           </div>
         </div>
 

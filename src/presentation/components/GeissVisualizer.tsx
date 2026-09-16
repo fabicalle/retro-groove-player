@@ -272,7 +272,7 @@ export function GeissVisualizer({
   const accent = variant === "ps1" ? "#bcd3ff" : "#00ff66";
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black flex items-center justify-center touch-none">
+    <div className="fixed inset-0 z-60 bg-black flex items-center justify-center touch-none">
       <canvas
         ref={ref}
         className="w-full h-full"

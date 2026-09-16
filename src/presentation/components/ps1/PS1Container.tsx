@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { GeissVisualizer } from "./GeissVisualizer";
+import { GeissVisualizer } from "@/presentation/components/GeissVisualizer";
 
 /**
  * Pixel-faithful recreation of the SCPH-1001 PlayStation BIOS "CD PLAYER" screen.

@@ -9,6 +9,14 @@ import {
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
+import { useAudioEngine } from "@/hooks/useAudioEngine";
+
+// Start the DRM-safe FFT engine once, at the root, so it survives
+// Winamp ↔ PS1 mode switches.
+function AudioEngineBoot() {
+  useAudioEngine();
+  return null;
+}
 
 function NotFoundComponent() {
   return (
@@ -88,6 +96,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "shortcut icon", href: "/favicon.svg" },
       { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
@@ -122,6 +132,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <AudioEngineBoot />
       <Outlet />
     </QueryClientProvider>
   );

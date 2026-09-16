@@ -11,6 +11,8 @@ const SCOPES = [
   "user-modify-playback-state",
   "playlist-read-private",
   "playlist-read-collaborative",
+  "user-library-read",
+  "user-read-currently-playing",
 ].join(" ");
 
 // --- PKCE helpers ---
@@ -128,9 +130,24 @@ export interface TokenResponse {
   expiresAt: number;
 }
 
-export const getTokenFromCode = async (code: string): Promise<TokenResponse | null> => {
+export interface TokenExchangeResult {
+  tokens: TokenResponse | null;
+  error: string | null;
+}
+
+/**
+ * Exchange an OAuth2 `code` for access/refresh tokens (PKCE).
+ *
+ * Returns `{ tokens, error }` instead of just `null` on failure so the
+ * caller can surface the real Spotify error message (e.g. PKCE mismatch,
+ * redirect_uri mismatch, expired code). This is what surfaces the 400
+ * "Invalid verification code" instead of a silent null.
+ */
+export const getTokenFromCode = async (code: string): Promise<TokenExchangeResult> => {
   const verifier = sessionStorage.getItem("spotify_verifier");
-  if (!verifier) return null;
+  if (!verifier) {
+    return { tokens: null, error: "No PKCE verifier in session — restart the login flow." };
+  }
 
   const payload = new URLSearchParams();
   payload.append("client_id", SPOTIFY_CLIENT_ID);
@@ -145,9 +162,27 @@ export const getTokenFromCode = async (code: string): Promise<TokenResponse | nu
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: payload,
     });
-    if (!response.ok) return null;
+
+    // Always clean the verifier — even on failure — so a retry starts fresh
+    sessionStorage.removeItem("spotify_verifier");
+
+    if (!response.ok) {
+      let detail = `HTTP ${response.status}`;
+      try {
+        const body = await response.json();
+        if (body?.error) {
+          detail = `${body.error}${body.error_description ? `: ${body.error_description}` : ""}`;
+        }
+      } catch {
+        // ignore body parse failure
+      }
+      return { tokens: null, error: `Token exchange failed (${detail})` };
+    }
+
     const data = await response.json();
-    if (!data.access_token || !data.refresh_token) return null;
+    if (!data.access_token || !data.refresh_token) {
+      return { tokens: null, error: "Spotify response missing access_token/refresh_token" };
+    }
 
     const tokens: SecureTokenData = {
       accessToken: data.access_token,
@@ -155,14 +190,14 @@ export const getTokenFromCode = async (code: string): Promise<TokenResponse | nu
       expiresAt: Date.now() + (data.expires_in ?? 3600) * 1000,
     };
 
-    // Persist encrypted
     await saveTokens(tokens);
-    // Clean up verifier
+    return { tokens, error: null };
+  } catch (err) {
     sessionStorage.removeItem("spotify_verifier");
-
-    return tokens;
-  } catch {
-    return null;
+    return {
+      tokens: null,
+      error: err instanceof Error ? err.message : "Network error during token exchange",
+    };
   }
 };
 
@@ -216,3 +251,260 @@ export const restoreSession = async (): Promise<TokenResponse | null> => {
 };
 
 export { clearTokens };
+
+/**
+ * Spotify OAuth2 error payload (returned in the URL as `?error=...`).
+ * When the user denies consent or the flow is aborted, Spotify redirects
+ * back to `REDIRECT_URI` with `error=access_denied` instead of `code=...`.
+ */
+export interface SpotifyAuthError {
+  error: string;
+  errorDescription: string | null;
+}
+
+/**
+ * Inspect the current URL for an OAuth2 error response.
+ * Returns the parsed error or null if the URL is clean.
+ */
+export function getAuthErrorFromUrl(): SpotifyAuthError | null {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  const error = params.get("error");
+  if (!error) return null;
+  return {
+    error,
+    errorDescription: params.get("error_description"),
+  };
+}
+
+/**
+ * True when the current URL contains an OAuth2 response parameter
+ * (`code` or `access_token`). Used to prevent the auth guard from
+ * re-triggering a redirect while the callback is still being processed.
+ */
+export function isOnCallbackUrl(): boolean {
+  if (typeof window === "undefined") return false;
+  const params = new URLSearchParams(window.location.search);
+  const hash = window.location.hash.startsWith("#")
+    ? window.location.hash.slice(1)
+    : window.location.hash;
+  const hashParams = new URLSearchParams(hash);
+  return Boolean(
+    params.get("code") ||
+    params.get("access_token") ||
+    hashParams.get("access_token") ||
+    params.get("error"),
+  );
+}
+
+/**
+ * Strip all OAuth2 response parameters from the URL without reloading.
+ * Safe to call multiple times — a clean URL is a no-op.
+ * Non-OAuth query parameters (e.g. TanStack Router search params) are kept.
+ */
+export function clearOAuthParams(): void {
+  if (typeof window === "undefined") return;
+  const params = new URLSearchParams(window.location.search);
+  const kept = new URLSearchParams();
+  for (const [k, v] of params.entries()) {
+    if (
+      k !== "code" &&
+      k !== "access_token" &&
+      k !== "error" &&
+      k !== "error_description" &&
+      k !== "state"
+    ) {
+      kept.set(k, v);
+    }
+  }
+  const newQuery = kept.toString();
+  const newUrl = window.location.pathname + (newQuery ? `?${newQuery}` : "") + window.location.hash;
+  window.history.replaceState({}, document.title, newUrl);
+}
+
+/**
+ * Map a Spotify OAuth error code to a human-readable message.
+ * Shared by the auth hook and the UI banner so the wording never drifts.
+ */
+export function describeAuthError(e: { error: string; errorDescription: string | null }): string {
+  const base = e.errorDescription || e.error;
+  switch (e.error) {
+    case "access_denied":
+      return "Access denied — you cancelled the Spotify login.";
+    case "invalid_request":
+      return `Invalid request: ${base}`;
+    case "invalid_client":
+      return "Invalid client — check the Spotify app credentials.";
+    case "invalid_grant":
+      return "Invalid grant — the authorisation code expired. Try again.";
+    case "unsupported_response_type":
+      return "Unsupported response type.";
+    case "server_error":
+      return "Spotify server error — please try again later.";
+    case "temporarily_unavailable":
+      return "Spotify is temporarily unavailable — try again in a moment.";
+    default:
+      return `Spotify error: ${base}`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Audio Analysis — used by the DRM-safe FFT simulation engine.
+// Spotify Web Playback SDK does not expose raw PCM, so we drive the
+// visualizers from the metadata + timed analysis arrays instead.
+// ═══════════════════════════════════════════════════════════════════════
+
+/** Subset of `GET /v1/audio-features/{id}` we actually use. */
+export interface AudioFeatures {
+  id: string;
+  uri: string;
+  name?: string;
+  duration_ms: number;
+  tempo: number;
+  energy: number;
+  loudness: number;
+  danceability: number;
+  valence: number;
+  key: number;
+  mode: number;
+  time_signature: number;
+}
+
+/** Subset of `GET /v1/audio-analysis/{id}` we actually use. */
+export interface AudioAnalysis {
+  track: {
+    duration_ms: number;
+    tempo: number;
+    time_signature: number;
+    key: number;
+    mode: number;
+    loudness: number;
+  };
+  bars: Array<{ start: number; duration: number; confidence: number }>;
+  beats: Array<{ start: number; duration: number; confidence: number }>;
+  tatums: Array<{ start: number; duration: number; confidence: number }>;
+  segments: Array<{
+    start: number;
+    duration: number;
+    confidence: number;
+    loudness_max: number;
+    loudness_start: number;
+    pitches: number[];
+    timbre: number[];
+  }>;
+}
+
+/**
+ * Fetch `GET /v1/audio-features/{id}` for a single track.
+ * Returns null on any failure (caller should fall back to defaults).
+ */
+export const fetchAudioFeatures = async (
+  accessToken: string,
+  trackId: string,
+): Promise<AudioFeatures | null> => {
+  try {
+    const res = await fetch(`https://api.spotify.com/v1/audio-features/${trackId}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) return null;
+    const d = await res.json();
+    if (!d || typeof d !== "object") return null;
+    return {
+      id: d.id ?? trackId,
+      uri: d.uri ?? `spotify:track:${trackId}`,
+      name: d.name,
+      duration_ms: d.duration_ms ?? 0,
+      tempo: d.tempo ?? 120,
+      energy: clamp(d.energy, 0, 1, 0.5),
+      loudness: clamp(d.loudness, -60, 0, -10),
+      danceability: clamp(d.danceability, 0, 1, 0.5),
+      valence: clamp(d.valence, 0, 1, 0.5),
+      key: clampInt(d.key, 0, 11, 0),
+      mode: clampInt(d.mode, 0, 1, 1),
+      time_signature: clampInt(d.time_signature, 3, 7, 4),
+    };
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Fetch `GET /v1/audio-analysis/{id}` for a single track.
+ * Returns null on any failure (caller should fall back to defaults).
+ */
+export const fetchAudioAnalysis = async (
+  accessToken: string,
+  trackId: string,
+): Promise<AudioAnalysis | null> => {
+  try {
+    const res = await fetch(`https://api.spotify.com/v1/audio-analysis/${trackId}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) return null;
+    const d = await res.json();
+    if (!d || typeof d !== "object") return null;
+    const raw = d as Record<string, unknown>;
+    const track = (
+      raw.track && typeof raw.track === "object" ? (raw.track as Record<string, unknown>) : {}
+    ) as Record<string, unknown>;
+    return {
+      track: {
+        duration_ms: Number(track.duration_ms) || 0,
+        tempo: Number(track.tempo) || 120,
+        time_signature: Number(track.time_signature) || 4,
+        key: clampInt(track.key, 0, 11, 0),
+        mode: clampInt(track.mode, 0, 1, 1),
+        loudness: clamp(track.loudness, -60, 0, -10),
+      },
+      bars: sanitizeTimeline(raw.bars),
+      beats: sanitizeTimeline(raw.beats),
+      tatums: sanitizeTimeline(raw.tatums),
+      segments: Array.isArray(raw.segments)
+        ? raw.segments.map((s) => {
+            const o = s as Record<string, unknown> | null | undefined;
+            return {
+              start: Number(o?.start) || 0,
+              duration: Number(o?.duration) || 0,
+              confidence: Number(o?.confidence) || 0,
+              loudness_max: Number(o?.loudness_max) || 0,
+              loudness_start: Number(o?.loudness_start) || 0,
+              pitches: Array.isArray(o?.pitches)
+                ? (o.pitches as unknown[]).map((n: unknown) => Number(n))
+                : [0, 0, 0, 0, 0, 0, 0],
+              timbre: Array.isArray(o?.timbre)
+                ? (o.timbre as unknown[]).map((n: unknown) => Number(n))
+                : [0, 0, 0, 0, 0, 0, 0],
+            };
+          })
+        : [],
+    };
+  } catch {
+    return null;
+  }
+};
+
+function clamp(v: unknown, lo: number, hi: number, fb: number): number {
+  const n = typeof v === "number" ? v : fb;
+  return Math.max(lo, Math.min(hi, n));
+}
+
+function clampInt(v: unknown, lo: number, hi: number, fb: number): number {
+  const n = typeof v === "number" ? v : fb;
+  return Math.max(lo, Math.min(hi, Math.round(n)));
+}
+
+function sanitizeTimeline(
+  arr: unknown,
+): Array<{ start: number; duration: number; confidence: number }> {
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map((s) => {
+      const o = s as Record<string, unknown> | null | undefined;
+      return {
+        start: Number(o?.start) || 0,
+        duration: Number(o?.duration) || 0,
+        confidence: Number(o?.confidence) || 0,
+      };
+    })
+    .filter((s) => Number.isFinite(s.start));
+}
